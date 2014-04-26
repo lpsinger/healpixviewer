@@ -164,6 +164,39 @@ static void reshape(int w, int h)
     reproject();
 }
 
+void OrRd(float x, float xmin, float xmax, GLubyte *rgb)
+{
+    static GLubyte colormap[3][3] = {
+        {0xfe, 0xe8, 0xc8},
+        {0xfd, 0xbb, 0x84},
+        {0xe3, 0x4a, 0x33}
+    };
+    GLubyte *a, *b;
+    x = (x - xmin) / (xmax - xmin);
+
+    if (x < 0)
+        memcpy(rgb, colormap[0], 3);
+    else if (x > 1)
+        memcpy(rgb, colormap[2], 3);
+    else if (x != x) /* nan */
+        memset(rgb, 0, 3);
+    else {
+        if (x < 0.5)
+        {
+            a = colormap[0];
+            b = colormap[1];
+        } else {
+            a = colormap[1];
+            b = colormap[2];
+            x -= 0.5;
+        }
+        x *= 2;
+        int i;
+        for (i = 0; i < 3; i ++)
+            rgb[i] = (1 - x) * a[i] + x * b[i];
+    }
+}
+
 int main(int argc, char **argv)
 {
     /* Load GLUT */
@@ -242,9 +275,7 @@ int main(int argc, char **argv)
                 max = hp[i];
         for (i = 0; i < npix; i ++)
         {
-            pix[4*i] = hp[i] / max * 255;
-            pix[4*i+1] = 0;//hp[i] / max * 255;
-            pix[4*i+2] = 0;
+            OrRd(hp[i], 0, max, &pix[4*i]);
             pix[4*i+3] = 255;
         }
     }
