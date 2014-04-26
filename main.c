@@ -257,7 +257,6 @@ int main(int argc, char **argv)
     glClearColor(1, 1, 1, 0);
     glShadeModel(GL_FLAT);
     glEnable(GL_DEPTH_TEST);
-    // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glGenTextures(12, textures);
     {
         unsigned char ibase;
