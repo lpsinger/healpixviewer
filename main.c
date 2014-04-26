@@ -86,7 +86,6 @@ static void draw_patch(
             y = sinf(phi) * sqrtf(1 - squaref(z));
             float s = (float)i / n;
             float t = (float)j / n;
-            // printf("x=%.3f y=%.3f z=%.3f s=%.3f t=%.3f\n", x, y, z, s, t);
             tiles[i][j][0] = x;
             tiles[i][j][1] = y;
             tiles[i][j][2] = z;
@@ -94,7 +93,6 @@ static void draw_patch(
             tiles[i][j][4] = t;
         }
     }
-    // puts("");
 
     for (i = 0; i < n; i ++)
     {
@@ -119,7 +117,6 @@ static void display(void) {
     unsigned char iface;
     for (iface = 0; iface < 12; iface ++)
     {
-        // printf("face %d\n", iface);
         glBindTexture(GL_TEXTURE_2D, textures[iface]);
         draw_patch(base_tile_xys[iface][0], base_tile_xys[iface][1], 16);
     }
