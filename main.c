@@ -26,121 +26,102 @@ static hpint64 interleave(hpint64 x, hpint64 y)
     return ipix;
 }
 
+static const float base_tile_xys[12][2] = {
+    /* face  0 */ {0.25, 0},
+    /* face  1 */ {0.75, 0},
+    /* face  2 */ {1.25, 0},
+    /* face  3 */ {1.75, 0},
+    /* face  4 */ {0, -0.25},
+    /* face  5 */ {0.5, -0.25},
+    /* face  6 */ {1, -0.25},
+    /* face  7 */ {1.5, -0.25},
+    /* face  8 */ {0.25, -0.5},
+    /* face  9 */ {0.75, -0.5},
+    /* face 10 */ {1.25, -0.5},
+    /* face 11 */ {1.75, -0.5}
+};
+
+static float squaref(float x)
+{
+    return x * x;
+}
+
+static void xy2zphi(float x, float y, float *z, float *phi)
+{
+    float abs_y = fabsf(y);
+    if (abs_y <= 0.25)
+    {
+        *phi = M_PI * x;
+        *z = 8. / 3 * y;
+    } else {
+        if (abs_y == 0.5)
+        {
+            *phi = 0;
+        } else {
+            *phi = M_PI * (x - (abs_y - 0.25) / (abs_y - 0.5)
+                * (fmodf(x, 0.5) - 0.25));
+        }
+        *z = copysignf(1 - squaref(2 - 4 * abs_y) / 3, y);
+    }
+}
+
 /* Load textures */
 static GLuint textures[12];
 
-typedef struct {
-    float x;
-    float y;
-    float z;
-    float u;
-    float v;
-} texturevec;
-
-static texturevec bisect(texturevec v0, texturevec v1)
-{
-    texturevec r = {v0.x + v1.x, v0.y + v1.y, v0.z + v1.z,
-        0.5 * (v0.u + v1.u), 0.5 * (v0.v + v1.v)};
-    float norm = 1.f / sqrtf(r.x * r.x + r.y * r.y + r.z * r.z);
-    r.x *= norm;
-    r.y *= norm;
-    r.z *= norm;
-    return r;
-}
-
 static void draw_patch(
-    texturevec v0,
-    texturevec v1,
-    texturevec v2,
-    unsigned int lod
+    float x0,
+    float y0,
+    unsigned int n
 ) {
-    if (lod == 0)
+    float tiles[n+1][n+1][5];
+    int i, j, k;
+
+    for (i = 0; i <= n; i ++)
     {
-        glBegin(GL_TRIANGLES);
-        glTexCoord2f(v0.u, v0.v);
-        glNormal3f(v0.x, v0.y, v0.z);
-        glVertex3f(v0.x, v0.y, v0.z);
+        for (j = 0; j <= n; j ++)
+        {
+            float x, y, z, phi;
+            xy2zphi(x0 - 0.25 * (j - i) / n, y0 + 0.25 * (i + j) / n, &z, &phi);
+            x = cosf(phi) * sqrtf(1 - squaref(z));
+            y = sinf(phi) * sqrtf(1 - squaref(z));
+            float s = (float)i / n;
+            float t = (float)j / n;
+            // printf("x=%.3f y=%.3f z=%.3f s=%.3f t=%.3f\n", x, y, z, s, t);
+            tiles[i][j][0] = x;
+            tiles[i][j][1] = y;
+            tiles[i][j][2] = z;
+            tiles[i][j][3] = s;
+            tiles[i][j][4] = t;
+        }
+    }
+    // puts("");
 
-        glTexCoord2f(v1.u, v1.v);
-        glNormal3f(v1.x, v1.y, v1.z);
-        glVertex3f(v1.x, v1.y, v1.z);
-
-        glTexCoord2f(v2.u, v2.v);
-        glNormal3f(v2.x, v2.y, v2.z);
-        glVertex3f(v2.x, v2.y, v2.z);
+    for (i = 0; i < n; i ++)
+    {
+        glBegin(GL_TRIANGLE_STRIP);
+        for (j = 0; j <= n; j ++)
+        {
+            for (k = i; k < i + 2; k ++)
+            {
+                glTexCoord2f(tiles[k][j][3], tiles[k][j][4]);
+                // glNormal3f(tiles[k][j][0], tiles[k][j][1], tiles[k][j][2]);
+                glVertex3f(tiles[k][j][0], tiles[k][j][1], tiles[k][j][2]);
+            }
+        }
         glEnd();
-    } else {
-        lod --;
-        draw_patch(v0, bisect(v0, v1), bisect(v0, v2), lod);
-        draw_patch(bisect(v0, v1), v1, bisect(v1, v2), lod);
-        draw_patch(bisect(v0, v2), bisect(v1, v2), v2, lod);
-        draw_patch(bisect(v0, v1), bisect(v1, v2), bisect(v2, v0), lod);
     }
 }
 
 static void display(void) {
-    const float a = sqrt(5)/3;
-    const float b = 2./3;
-    const float c = 1/sqrt(2);
-    const float vertices[14][3] = {
-        { 0,  0,  1},
-        { a,  0,  b},
-        { 0,  a,  b},
-        {-a,  0,  b},
-        { 0, -a,  b},
-        { c,  c,  0},
-        {-c,  c,  0},
-        {-c, -c,  0},
-        { c, -c,  0},
-        { a,  0, -b},
-        { 0,  a, -b},
-        {-a,  0, -b},
-        { 0, -a, -b},
-        { 0,  0, -1}
-    };
-    const unsigned int faces[12][4] = {
-        {5, 1, 0, 2},
-        {6, 2, 0, 3},
-        {7, 3, 0, 4},
-        {8, 4, 0, 1},
-        {9, 8, 1, 5},
-        {10, 5, 2, 6},
-        {11, 6, 3, 7},
-        {12, 7, 4, 8},
-        {13, 9, 5, 10},
-        {13, 10, 6, 11},
-        {13, 11, 7, 12},
-        {13, 12, 8, 9}
-    };
-    const float uvs[4][2] = {
-        {0, 0},
-        {0, 1},
-        {1, 1},
-        {1, 0}
-    };
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glEnable(GL_TEXTURE_2D);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
     unsigned char iface;
     for (iface = 0; iface < 12; iface ++)
     {
-        unsigned char ivert;
+        // printf("face %d\n", iface);
         glBindTexture(GL_TEXTURE_2D, textures[iface]);
-        texturevec tv[4];
-        for (ivert = 0; ivert < 4; ivert ++)
-        {
-            const float *v = vertices[faces[iface][ivert]];
-            const float *uv = uvs[ivert];
-            tv[ivert].x = v[0];
-            tv[ivert].y = v[1];
-            tv[ivert].z = v[2];
-            tv[ivert].u = uv[0];
-            tv[ivert].v = uv[1];
-        }
-        draw_patch(tv[0], tv[1], tv[2], 5);
-        draw_patch(tv[0], tv[2], tv[3], 5);
+        draw_patch(base_tile_xys[iface][0], base_tile_xys[iface][1], 16);
     }
     glDisable(GL_TEXTURE_2D);
     glFlush();
