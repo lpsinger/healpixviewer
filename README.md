@@ -1,4 +1,5 @@
-= HEALPix Viewer
+HEALPix Viewer
+==============
 
 Render a HEALPix data set in false color using modern OpenGL techniques. The
 purpose of this project is mostly to bring myself up to speed with modern
@@ -9,7 +10,8 @@ This is inspired by Damien George's excellent CMB visualization at
 implements the HEALPix projection itself (instead of a geodesic approximation
 of it).
 
-== Requirements
+Requirements
+------------
 
 Building requires:
 
@@ -24,11 +26,13 @@ can get all of the dependencies with:
 
     sudo port install glfw glm healpix-c
 
-== To build
+To build
+--------
 
 Just run `make`.
 
-== Usage
+Usage
+-----
 
 Just pass the name of a (possibly gzip-compressed) FITS file, like this:
 
