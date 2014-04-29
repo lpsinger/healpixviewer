@@ -730,10 +730,16 @@ int main(int argc, char **argv)
     glfwSetErrorCallback(error);
     if (!glfwInit())
         exit(EXIT_FAILURE);
+
+    /* Necessary to get modern OpenGL context on Mavericks */
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1);
+
+    /* 4x antialiasing */
+    glfwWindowHint(GLFW_SAMPLES, 4);
+
     GLFWwindow *window = glfwCreateWindow(600, 600, "HEALPix Viewer", NULL, NULL);
     if (!window)
     {
