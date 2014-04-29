@@ -5,8 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-static int mousex = 0, mousey = 0;
+static int mousex = 0, mousey = 0, scrolly = 0;
 
 static hpint64 interleave(hpint64 x, hpint64 y)
 {
@@ -71,29 +74,19 @@ static void keyboard(GLFWwindow *window, int key, int scancode, int action, int 
         glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
-static void reproject()
-{
-    // glMatrixMode(GL_MODELVIEW);
-    // glLoadIdentity();
-    // glTranslatef(0, 0, -2.5);
-    // glRotatef(mousex*0.5, 0, 1, 0);
-    // glRotatef(mousey*0.5, 0, 0, 1);
-}
-
 static void motion(GLFWwindow *window, double x, double y)
 {
     mousex = x;
     mousey = y;
-    reproject();
 }
 
-static void resize(GLFWwindow *window, int w, int h)
+static void scroll(GLFWwindow *window, double xoffset, double yoffset)
 {
-    glViewport(0, 0, w, h);
-    // glMatrixMode(GL_PROJECTION);
-    // glLoadIdentity();
-    // gluPerspective(60., (GLfloat)w/(GLfloat)h, 1., 30.);
-    reproject();
+    scrolly += yoffset;
+    if (scrolly < -100)
+        scrolly = -100;
+    else if (scrolly > 100)
+        scrolly = 100;
 }
 
 static void error(int error, const char *description)
@@ -625,16 +618,24 @@ static const char *vertex_shader_source = GLSL(
     in vec3 position;
     in vec2 datacoord;
 
+    uniform mat4 proj;
+    uniform mat4 view;
+    uniform mat4 model;
+
     out vec2 Datacoord;
+    out float lum;
 
     void main(void) {
-        gl_Position = vec4(position, 1);
+        vec4 normal_cam = view * model * vec4(position, 0);
+        lum = 0.5+normalize(normal_cam).z;
+        gl_Position = proj * view * model * vec4(position, 1);
         Datacoord = datacoord;
     }
 );
 
 static const char *fragment_shader_source = GLSL(
     in vec2 Datacoord;
+    in float lum;
 
     uniform sampler2D datamap;
     uniform sampler1D colormap;
@@ -642,7 +643,7 @@ static const char *fragment_shader_source = GLSL(
     out vec4 outcolor;
 
     void main(void) {
-        outcolor = texture(colormap, texture(datamap, Datacoord).r);
+        outcolor = lum * texture(colormap, texture(datamap, Datacoord).r);
     }
 );
 
@@ -675,7 +676,7 @@ int main(int argc, char **argv)
     /* Convert to NEST ordering if necessary */
     if (ordering[0] == 'R') /* Ring indexing */
     {
-        float *new_hp = malloc(npix * sizeof(*new_hp));
+        float *new_hp = (float *) malloc(npix * sizeof(*new_hp));
         if (!new_hp)
         {
             perror("malloc");
@@ -708,7 +709,7 @@ int main(int argc, char **argv)
     }
 
     /* Rescale to range [0, 255] */
-    GLubyte *pix = malloc(npix * sizeof(GLubyte));
+    GLushort *pix = (GLushort *) malloc(npix * sizeof(GLushort));
     if (!pix)
     {
         perror("malloc");
@@ -721,7 +722,7 @@ int main(int argc, char **argv)
             if (hp[i] > max)
                 max = hp[i];
         for (i = 0; i < npix; i ++)
-            pix[i] = hp[i] / max * 255;
+            pix[i] = hp[i] / max * 65535;
     }
     free(hp);
 
@@ -755,7 +756,7 @@ int main(int argc, char **argv)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, nside, nside, 0, GL_RED,
-                GL_UNSIGNED_BYTE, pix + nside * nside * ibase);
+                GL_UNSIGNED_SHORT, pix + nside * nside * ibase);
         }
     
         /* Load texture for color map, make active in slot 1 */
@@ -809,6 +810,9 @@ int main(int argc, char **argv)
     /* Get all attribs and uniforms */
     GLint position_attrib = glGetAttribLocation(shader_program, "position");
     GLint datacoord_attrib = glGetAttribLocation(shader_program, "datacoord");
+    GLint proj_uniform = glGetUniformLocation(shader_program, "proj");
+    GLint view_uniform = glGetUniformLocation(shader_program, "view");
+    GLint model_uniform = glGetUniformLocation(shader_program, "model");
     GLint datamap_uniform = glGetUniformLocation(shader_program, "datamap");
     GLint colormap_uniform = glGetUniformLocation(shader_program, "colormap");
 
@@ -861,10 +865,10 @@ int main(int argc, char **argv)
                     for (j = 0; j < ndiv; j ++)
                     {
                         *el++ = (i+0) * (ndiv + 1) + (j+0);
-                        *el++ = (i+1) * (ndiv + 1) + (j+0);
-                        *el++ = (i+0) * (ndiv + 1) + (j+1);
                         *el++ = (i+0) * (ndiv + 1) + (j+1);
                         *el++ = (i+1) * (ndiv + 1) + (j+0);
+                        *el++ = (i+1) * (ndiv + 1) + (j+0);
+                        *el++ = (i+0) * (ndiv + 1) + (j+1);
                         *el++ = (i+1) * (ndiv + 1) + (j+1);
                     }
                 }
@@ -895,20 +899,31 @@ int main(int argc, char **argv)
 
     glfwSetKeyCallback(window, keyboard);
     glfwSetCursorPosCallback(window, motion);
-    glfwSetFramebufferSizeCallback(window, resize);
-    {
-        int w, h;
-        glfwGetFramebufferSize(window, &w, &h);
-        resize(window, w, h);
-    }
+    glfwSetScrollCallback(window, scroll);
 
-    glClearColor(1, 1, 1, 0);
+    glClearColor(0, 0, 0, 0);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
 
     while (!glfwWindowShouldClose(window))
     {
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        glm::mat4 model;
+        model = glm::rotate(model, 0.5f*mousex, glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::rotate(model, -0.5f*mousey, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 proj = glm::perspective(45.0f, (float)width/height, 1.0f, 10.0f);
+        glViewport(0, 0, width, height);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(proj_uniform, 1, GL_FALSE, glm::value_ptr(proj));
+        glm::mat4 view = glm::lookAt(
+            glm::vec3(3.0f + 0.01f*scrolly, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        );
+        glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         unsigned char iface;
         for (iface = 0; iface < 12; iface ++)
