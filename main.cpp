@@ -627,7 +627,7 @@ static const char *vertex_shader_source = GLSL(
 
     void main(void) {
         vec4 normal_cam = view * model * vec4(position, 0);
-        lum = 0.5+normalize(normal_cam).z;
+        lum = 0.25+normalize(normal_cam).z;
         gl_Position = proj * view * model * vec4(position, 1);
         Datacoord = datacoord;
     }
