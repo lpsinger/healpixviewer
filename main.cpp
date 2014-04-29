@@ -829,6 +829,28 @@ int main(int argc, char **argv)
     {
         int i, j;
 
+        GLuint ebo;
+        {
+            GLushort elements[ndiv * ndiv * 3 * 2];
+            GLushort *el = elements;
+            for (i = 0; i < ndiv; i ++)
+            {
+                for (j = 0; j < ndiv; j ++)
+                {
+                    *el++ = (i+0) * (ndiv + 1) + (j+0);
+                    *el++ = (i+0) * (ndiv + 1) + (j+1);
+                    *el++ = (i+1) * (ndiv + 1) + (j+0);
+                    *el++ = (i+1) * (ndiv + 1) + (j+0);
+                    *el++ = (i+0) * (ndiv + 1) + (j+1);
+                    *el++ = (i+1) * (ndiv + 1) + (j+1);
+                }
+            }
+
+            glGenBuffers(1, &ebo);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+        }
+
         unsigned char ibase;
         for (ibase = 0; ibase < 12; ibase ++)
         {
@@ -863,27 +885,8 @@ int main(int argc, char **argv)
                 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
             }
 
-            {
-                GLushort elements[ndiv * ndiv * 3 * 2];
-                GLushort *el = elements;
-                for (i = 0; i < ndiv; i ++)
-                {
-                    for (j = 0; j < ndiv; j ++)
-                    {
-                        *el++ = (i+0) * (ndiv + 1) + (j+0);
-                        *el++ = (i+0) * (ndiv + 1) + (j+1);
-                        *el++ = (i+1) * (ndiv + 1) + (j+0);
-                        *el++ = (i+1) * (ndiv + 1) + (j+0);
-                        *el++ = (i+0) * (ndiv + 1) + (j+1);
-                        *el++ = (i+1) * (ndiv + 1) + (j+1);
-                    }
-                }
-
-                GLuint ebo;
-                glGenBuffers(1, &ebo);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
-            }
+            /* We'll reuse the same ebo for each face. */
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
             /* Specify attribute layout */
             glEnableVertexAttribArray(position_attrib);
