@@ -36,4 +36,9 @@ Usage
 
 Just pass the name of a (possibly gzip-compressed) FITS file, like this:
 
-    healpixviewer INPUT.fits[.gz]
+    $ healpixviewer INPUT.fits[.gz]
+
+Here's an example sky map from a paper I am working on:
+
+    $ wget http://ligo.org/science/first2years/2015/compare/18951/bayestar.fits.gz
+    $ ./healpixviewer bayestar.fits.gz
