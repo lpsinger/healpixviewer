@@ -1,10 +1,11 @@
+#define GLFW_INCLUDE_GLCOREARB
 #include <chealpix.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <OpenGL/gl.h>
-#include <GLUT/glut.h>
+#include <GLFW/glfw3.h>
+// #include <GL/glu.h>
 
 static int mousex = 0, mousey = 0;
 
@@ -66,7 +67,7 @@ static void xy2zphi(float x, float y, float *z, float *phi)
 }
 
 /* Load textures */
-static GLuint textures[12];
+static GLuint textures[13];
 
 static void draw_patch(
     float x0,
@@ -96,109 +97,93 @@ static void draw_patch(
 
     for (i = 0; i < n; i ++)
     {
-        glBegin(GL_TRIANGLE_STRIP);
-        for (j = 0; j <= n; j ++)
-        {
-            for (k = i; k < i + 2; k ++)
-            {
-                glTexCoord2f(tiles[k][j][3], tiles[k][j][4]);
-                // glNormal3f(tiles[k][j][0], tiles[k][j][1], tiles[k][j][2]);
-                glVertex3f(tiles[k][j][0], tiles[k][j][1], tiles[k][j][2]);
-            }
-        }
-        glEnd();
+        // glBegin(GL_TRIANGLE_STRIP);
+        // for (j = 0; j <= n; j ++)
+        // {
+        //     for (k = i; k < i + 2; k ++)
+        //     {
+        //         glTexCoord2f(tiles[k][j][3], tiles[k][j][4]);
+        //         glNormal3f(tiles[k][j][0], tiles[k][j][1], tiles[k][j][2]);
+        //         glVertex3f(tiles[k][j][0], tiles[k][j][1], tiles[k][j][2]);
+        //     }
+        // }
+        // glEnd();
     }
 }
 
-static void display(void) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_TEXTURE_2D);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-    unsigned char iface;
-    for (iface = 0; iface < 12; iface ++)
-    {
-        glBindTexture(GL_TEXTURE_2D, textures[iface]);
-        draw_patch(base_tile_xys[iface][0], base_tile_xys[iface][1], 16);
-    }
-    glDisable(GL_TEXTURE_2D);
-    glFlush();
-}
-
-static void keyboard(unsigned char key, int x, int y) {
-    switch (key)
-    {
-        case 27: /* escape */
-        case 'q':
-            exit(EXIT_SUCCESS);
-        default:
-            break;
-    }
+static void keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
 static void reproject()
 {
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glTranslatef(0, 0, -2.5);
-    glRotatef(mousex, 0, 1, 0);
-    glRotatef(mousey, 0, 0, 1);
+    // glMatrixMode(GL_MODELVIEW);
+    // glLoadIdentity();
+    // glTranslatef(0, 0, -2.5);
+    // glRotatef(mousex*0.5, 0, 1, 0);
+    // glRotatef(mousey*0.5, 0, 0, 1);
 }
 
-static void motion(int x, int y)
+static void motion(GLFWwindow *window, double x, double y)
 {
     mousex = x;
     mousey = y;
     reproject();
-    glutPostRedisplay();
 }
 
-static void reshape(int w, int h)
+static void resize(GLFWwindow *window, int w, int h)
 {
     glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(60., (GLfloat)w/(GLfloat)h, 1., 30.);
+    // glMatrixMode(GL_PROJECTION);
+    // glLoadIdentity();
+    // gluPerspective(60., (GLfloat)w/(GLfloat)h, 1., 30.);
     reproject();
 }
 
-void OrRd(float x, float xmin, float xmax, GLubyte *rgb)
+static void error(int error, const char *description)
 {
-    static GLubyte colormap[3][3] = {
-        {0xfe, 0xe8, 0xc8},
-        {0xfd, 0xbb, 0x84},
-        {0xe3, 0x4a, 0x33}
-    };
-    GLubyte *a, *b;
-    x = (x - xmin) / (xmax - xmin);
-
-    if (x < 0)
-        memcpy(rgb, colormap[0], 3);
-    else if (x > 1)
-        memcpy(rgb, colormap[2], 3);
-    else if (x != x) /* nan */
-        memset(rgb, 0, 3);
-    else {
-        if (x < 0.5)
-        {
-            a = colormap[0];
-            b = colormap[1];
-        } else {
-            a = colormap[1];
-            b = colormap[2];
-            x -= 0.5;
-        }
-        x *= 2;
-        int i;
-        for (i = 0; i < 3; i ++)
-            rgb[i] = (1 - x) * a[i] + x * b[i];
-    }
+    fprintf(stderr, "GLFW error %d: %s\n", error, description);
 }
+
+static const GLubyte colormap[][4] = {
+    {0xfe, 0xe8, 0xc8, 0xFF},
+    {0xfd, 0xbb, 0x84, 0xFF},
+    {0xe3, 0x4a, 0x33, 0xFF}
+};
+
+#define GLSL(source) "#version 330\n" #source
+
+static const char *vertex_shader_source = GLSL(
+    in vec3 position;
+    in vec2 datacoord;
+
+    out vec2 Datacoord;
+
+    void main(void) {
+        gl_Position = vec4(position, 1);
+        Datacoord = datacoord;
+    }
+);
+
+static const char *fragment_shader_source = GLSL(
+    in vec2 Datacoord;
+
+    uniform sampler2D datamap;
+    uniform sampler1D colormap;
+
+    out vec4 outcolor;
+
+    void main(void) {
+        outcolor = texture(colormap, texture(datamap, Datacoord).r);
+        // float r = texture(datamap, Datacoord).r;
+        // outcolor = vec4(texture(datamap, Datacoord).r, 0, 0, 1);
+    }
+);
 
 int main(int argc, char **argv)
 {
-    /* Load GLUT */
-    glutInit(&argc, argv);
-
     /* Validate input */
     if (argc != 2)
     {
@@ -258,7 +243,8 @@ int main(int argc, char **argv)
         }
     }
 
-    GLubyte *pix = malloc(npix * 3 * sizeof(GLubyte));
+    /* Rescale to range [0, 255] */
+    GLubyte *pix = malloc(npix * sizeof(GLubyte));
     if (!pix)
     {
         perror("malloc");
@@ -271,39 +257,144 @@ int main(int argc, char **argv)
             if (hp[i] > max)
                 max = hp[i];
         for (i = 0; i < npix; i ++)
-        {
-            OrRd(hp[i], 0, max, &pix[4*i]);
-            pix[4*i+3] = 255;
-        }
+            pix[i] = hp[i] / max * 255;
     }
     free(hp);
 
-    glutInitWindowSize(600, 600);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
-    glutCreateWindow("HEALPix Viewer");
+    glfwSetErrorCallback(error);
+    if (!glfwInit())
+        exit(EXIT_FAILURE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1);
+    GLFWwindow *window = glfwCreateWindow(600, 600, "HEALPix Viewer", NULL, NULL);
+    if (!window)
+    {
+        glfwTerminate();
+        exit(EXIT_FAILURE);
+    }
+    glfwMakeContextCurrent(window);
 
     glClearColor(1, 1, 1, 0);
-    glShadeModel(GL_FLAT);
     glEnable(GL_DEPTH_TEST);
-    glGenTextures(12, textures);
+    glGenTextures(13, textures);
     {
+        /* Load textures for faces */
         unsigned char ibase;
         for (ibase = 0; ibase < 12; ibase ++)
         {
             glBindTexture(GL_TEXTURE_2D, textures[ibase]);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, 
-                GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 
-                GL_NEAREST);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, nside, nside, 0,
-                GL_RGBA, GL_UNSIGNED_BYTE, pix + 4 * nside * nside * ibase);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, nside, nside, 0, GL_RED,
+                GL_UNSIGNED_BYTE, pix + nside * nside * ibase);
+        }
+    
+        /* Load texture for color map, make active in slot 1 */
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_1D, textures[ibase]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, sizeof(colormap)/3, 0, GL_RGBA,
+            GL_UNSIGNED_BYTE, colormap);
+    }
+
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    static const float vertices[][5] = {
+        {0, 0, 0, 0, 0},
+        {0, 1, 0, 0, 1},
+        {1, 0, 0, 1, 0},
+        {1, 1, 0, 1, 1}
+    };
+
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    /* Compile shaders */
+    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    {
+        GLint status;
+
+        glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
+        glCompileShader(vertex_shader);
+        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &status);
+        if (status != GL_TRUE)
+        {
+            char buffer[512];
+            glGetShaderInfoLog(vertex_shader, sizeof(buffer), NULL, buffer);
+            fprintf(stderr, "error compiling vertex shader: %s\n", buffer);
+            exit(EXIT_FAILURE);
+        }
+
+        glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
+        glCompileShader(fragment_shader);
+        glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &status);
+        if (status != GL_TRUE)
+        {
+            char buffer[512];
+            glGetShaderInfoLog(fragment_shader, sizeof(buffer), NULL, buffer);
+            fprintf(stderr, "error compiling fragment shader: %s\n", buffer);
+            exit(EXIT_FAILURE);
         }
     }
 
-    glutDisplayFunc(display);
-    glutReshapeFunc(reshape);
-    glutKeyboardFunc(keyboard);
-    glutMotionFunc(motion);
-    glutMainLoop();
-    return 0;
+    GLuint shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glBindFragDataLocation(shader_program, 0, "outcolor");
+    glLinkProgram(shader_program);
+    glUseProgram(shader_program);
+
+    GLint position_attrib = glGetAttribLocation(shader_program, "position");
+    glVertexAttribPointer(position_attrib, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), 0);
+    glEnableVertexAttribArray(position_attrib);
+
+    GLint datacoord_attrib = glGetAttribLocation(shader_program, "datacoord");
+    glVertexAttribPointer(datacoord_attrib, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(datacoord_attrib);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textures[9]);
+    GLint datamap_uniform = glGetUniformLocation(shader_program, "datamap");
+    glUniform1i(datamap_uniform, 0);
+
+    GLint colormap_uniform = glGetUniformLocation(shader_program, "colormap");
+    glUniform1i(colormap_uniform, 1);
+
+    glfwSetKeyCallback(window, keyboard);
+    glfwSetCursorPosCallback(window, motion);
+    glfwSetFramebufferSizeCallback(window, resize);
+    {
+        int w, h;
+        glfwGetFramebufferSize(window, &w, &h);
+        resize(window, w, h);
+    }
+    while (!glfwWindowShouldClose(window))
+    {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        // unsigned char iface;
+        // for (iface = 0; iface < 12; iface ++)
+        // {
+        //     glBindTexture(GL_TEXTURE_2D, textures[iface]);
+        //     draw_patch(base_tile_xys[iface][0], base_tile_xys[iface][1], 16);
+        // }
+        glFlush();
+        glfwSwapBuffers(window);
+        glfwWaitEvents();
+    }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
+    exit(EXIT_SUCCESS);
 }
