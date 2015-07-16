@@ -696,16 +696,22 @@ int main(int argc, char **argv)
     /* Rearrange into base tiles */
     {
         unsigned char ibase;
+        float *tile = (float *)malloc(nside * nside * sizeof(*hp));
+        if (!tile)
+        {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
         for (ibase = 0; ibase < 12; ibase ++)
         {
             float *base = hp + nside * nside * ibase;
-            float tile[nside][nside];
             long x, y;
             for (x = 0; x < nside; x ++)
                 for (y = 0; y < nside; y ++)
-                    tile[x][y] = base[interleave(y, x)];
-            memcpy(base, tile, sizeof(tile));
+                    tile[x * nside + y] = base[interleave(y, x)];
+            memcpy(base, tile, nside * nside * sizeof(*tile));
         }
+        free(tile);
     }
 
     /* Rescale to range [0, 255] */
