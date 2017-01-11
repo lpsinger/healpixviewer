@@ -695,14 +695,13 @@ int main(int argc, char **argv)
 
     /* Rearrange into base tiles */
     {
-        unsigned char ibase;
         float *tile = (float *)malloc(nside * nside * sizeof(*hp));
         if (!tile)
         {
             perror("malloc");
             exit(EXIT_FAILURE);
         }
-        for (ibase = 0; ibase < 12; ibase ++)
+        for (unsigned char ibase = 0; ibase < 12; ibase ++)
         {
             float *base = hp + nside * nside * ibase;
             long x, y;
@@ -722,12 +721,11 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
     {
-        int64_t i;
         float max = hp[0];
-        for (i = 1; i < npix; i ++)
+        for (int64_t i = 1; i < npix; i ++)
             if (hp[i] > max)
                 max = hp[i];
-        for (i = 0; i < npix; i ++)
+        for (int64_t i = 0; i < npix; i ++)
             pix[i] = hp[i] / max * 65535;
     }
     free(hp);
@@ -833,15 +831,13 @@ int main(int argc, char **argv)
     glGenVertexArrays(12, vaos);
     static const unsigned int ndiv = 16;
     {
-        int i, j;
-
         GLuint ebo;
         {
             GLushort elements[ndiv * ndiv * 3 * 2];
             GLushort *el = elements;
-            for (i = 0; i < ndiv; i ++)
+            for (int i = 0; i < ndiv; i ++)
             {
-                for (j = 0; j < ndiv; j ++)
+                for (int j = 0; j < ndiv; j ++)
                 {
                     *el++ = (i+0) * (ndiv + 1) + (j+0);
                     *el++ = (i+0) * (ndiv + 1) + (j+1);
@@ -857,8 +853,7 @@ int main(int argc, char **argv)
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
         }
 
-        unsigned char ibase;
-        for (ibase = 0; ibase < 12; ibase ++)
+        for (unsigned char ibase = 0; ibase < 12; ibase ++)
         {
             glBindVertexArray(vaos[ibase]);
 
@@ -867,9 +862,9 @@ int main(int argc, char **argv)
                 GLfloat vertices[ndiv+1][ndiv+1][5];
                 const float x0 = base_tile_xys[ibase][0];
                 const float y0 = base_tile_xys[ibase][1];
-                for (i = 0; i <= ndiv; i ++)
+                for (int i = 0; i <= ndiv; i ++)
                 {
-                    for (j = 0; j <= ndiv; j ++)
+                    for (int j = 0; j <= ndiv; j ++)
                     {
                         float x, y, z, phi;
                         xy2zphi(x0 - 0.25 * (j - i) / ndiv, y0 + 0.25 * (i + j) / ndiv, &z, &phi);
