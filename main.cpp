@@ -835,9 +835,9 @@ int main(int argc, char **argv)
         {
             GLushort elements[ndiv * ndiv * 3 * 2];
             GLushort *el = elements;
-            for (int i = 0; i < ndiv; i ++)
+            for (unsigned int i = 0; i < ndiv; i ++)
             {
-                for (int j = 0; j < ndiv; j ++)
+                for (unsigned int j = 0; j < ndiv; j ++)
                 {
                     *el++ = (i+0) * (ndiv + 1) + (j+0);
                     *el++ = (i+0) * (ndiv + 1) + (j+1);
@@ -862,12 +862,12 @@ int main(int argc, char **argv)
                 GLfloat vertices[ndiv+1][ndiv+1][5];
                 const float x0 = base_tile_xys[ibase][0];
                 const float y0 = base_tile_xys[ibase][1];
-                for (int i = 0; i <= ndiv; i ++)
+                for (unsigned int i = 0; i <= ndiv; i ++)
                 {
-                    for (int j = 0; j <= ndiv; j ++)
+                    for (unsigned int j = 0; j <= ndiv; j ++)
                     {
                         float x, y, z, phi;
-                        xy2zphi(x0 - 0.25 * (j - i) / ndiv, y0 + 0.25 * (i + j) / ndiv, &z, &phi);
+                        xy2zphi(x0 - 0.25 * ((int) j - (int) i) / ndiv, y0 + 0.25 * (i + j) / ndiv, &z, &phi);
                         x = cosf(phi) * sqrtf(1 - squaref(z));
                         y = sinf(phi) * sqrtf(1 - squaref(z));
                         float s = (float)i / ndiv;
