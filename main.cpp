@@ -11,10 +11,10 @@
 
 static int mousex = 0, mousey = 0, scrolly = 0;
 
-static hpint64 interleave(hpint64 x, hpint64 y)
+static int64_t interleave(int64_t x, int64_t y)
 {
     unsigned char ibit = 0;
-    hpint64 ipix = 0;
+    int64_t ipix = 0;
 
     while (x || y)
     {
@@ -671,7 +671,7 @@ int main(int argc, char **argv)
     }
 
     /* Determine total number of pixels */
-    hpint64 npix = nside2npix64(nside);
+    int64_t npix = nside2npix64(nside);
 
     /* Convert to NEST ordering if necessary */
     if (ordering[0] == 'R') /* Ring indexing */
@@ -682,10 +682,10 @@ int main(int argc, char **argv)
             perror("malloc");
             exit(EXIT_FAILURE);
         }
-        hpint64 ipix_nest;
+        int64_t ipix_nest;
         for (ipix_nest = 0; ipix_nest < npix; ipix_nest ++)
         {
-            hpint64 ipix_ring;
+            int64_t ipix_ring;
             nest2ring64(nside, ipix_nest, &ipix_ring);
             new_hp[ipix_nest] = hp[ipix_ring];
         }
@@ -722,7 +722,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
     {
-        hpint64 i;
+        int64_t i;
         float max = hp[0];
         for (i = 1; i < npix; i ++)
             if (hp[i] > max)
